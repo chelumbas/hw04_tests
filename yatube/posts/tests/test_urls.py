@@ -26,7 +26,11 @@ class PostsURLTests(TestCase):
         self.authorized_client.force_login(self.user)
 
     def test_guest_client_status_code(self):
-        urls = ('', f'/group/{self.group.slug}/', f'/profile/{self.user}/', f'/posts/{self.post.id}/')
+        urls = (
+            '', f'/group/{self.group.slug}/',
+            f'/profile/{self.user}/',
+            f'/posts/{self.post.id}/'
+        )
         for url in urls:
             with self.subTest():
                 response = self.guest_client.get(url)
