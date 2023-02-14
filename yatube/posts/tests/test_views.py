@@ -6,23 +6,25 @@ from ..models import Post, Group, User
 
 
 class PostsVIEWTests(TestCase):
-
-    def setUp(self):
-        self.user = User.objects.create(username='test_user')
-        self.guest_client = Client()
-        self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
-        self.group = Group.objects.create(
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create(username='test_user')
+        cls.group = Group.objects.create(
             title='Test title',
             slug='test_slug',
             description='Test description',
         )
-        for post in range(11):
-            self.post = Post.objects.create(
-                text='Test text',
-                author=self.user,
-                group=self.group,
-            )
+        cls.post = Post.objects.create(
+            text='Test text',
+            author=cls.user,
+            group=cls.group,
+        )
+
+    def setUp(self):
+        self.guest_client = Client()
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.user)
 
     def test_correct_templates(self):
         reverse_map = {
@@ -67,6 +69,19 @@ class PostsVIEWTests(TestCase):
         self.assertIn('page_obj', response.context)
         self.assertEqual(response.context['author'], self.user)
 
+    def test_posts_context(self):
+        pages = (
+            reverse('posts:index'),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.user})
+        )
+        for page in pages:
+            response = self.authorized_client.get(page)
+            first_object = response.context['page_obj'][0]
+            self.assertEqual(first_object.text, self.post.text)
+            self.assertEqual(first_object.author, self.post.author)
+            self.assertEqual(first_object.group, self.post.group)
+
     def test_post_detail_context(self):
         response = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
@@ -98,22 +113,38 @@ class PostsVIEWTests(TestCase):
                 result = response.context.get('form').fields.get(field)
                 self.assertIsInstance(result, form)
 
-    def test_get_first_page_objects(self):
-        pages = [
+
+class PostsPAGINATORTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create(username='test_user')
+        cls.group = Group.objects.create(
+            title='Test title',
+            slug='test_slug',
+            description='Test description',
+        )
+        for post in range(11):
+            cls.post = Post.objects.create(
+                text='Test text',
+                author=cls.user,
+                group=cls.group,
+            )
+
+    def setUp(self):
+        self.guest_client = Client()
+        self.pages = (
             reverse('posts:index'),
             reverse('posts:group_list', kwargs={'slug': self.group.slug}),
             reverse('posts:profile', kwargs={'username': self.user})
-        ]
-        for page in pages:
+        )
+
+    def test_get_first_page_objects(self):
+        for page in self.pages:
             response = self.guest_client.get(page)
             self.assertEqual(len(response.context['page_obj']), 10)
 
     def test_get_second_page_objects(self):
-        pages = [
-            reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
-            reverse('posts:profile', kwargs={'username': self.user})
-        ]
-        for page in pages:
+        for page in self.pages:
             response = self.guest_client.get(page + '?page=2')
             self.assertEqual(len(response.context['page_obj']), 1)

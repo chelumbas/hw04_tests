@@ -7,16 +7,19 @@ from ..models import Post, User
 
 
 class PostsFORMSTest(TestCase):
-    def setUp(self):
-        self.user = User.objects.create(username='test_user')
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create(username='test_user')
+        cls.post = Post.objects.create(
+            text='Test text',
+            author=cls.user,
+        )
+        cls.form = PostForm()
+
+    def setUp(self) -> None:
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
-        self.post = Post.objects.create(
-            text='Test text',
-            author=self.user,
-            id=1,
-        )
-        self.form = PostForm()
 
     def test_success_create_post(self):
         posts_count = Post.objects.count()

@@ -6,49 +6,41 @@ from ..models import Post, Group, User
 
 
 class PostsURLTests(TestCase):
-
-    def setUp(self):
-        self.user = User.objects.create(username='test_user')
-        self.guest_client = Client()
-        self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
-        self.post = Post.objects.create(
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = User.objects.create(username='test_user')
+        cls.post = Post.objects.create(
             text='Test text',
-            author=self.user,
-            id=1,
+            author=cls.user
         )
-        self.group = Group.objects.create(
+        cls.group = Group.objects.create(
             title='Test title',
             slug='test_slug',
             description='Test description',
         )
 
-    def test_index_page(self):
-        response = self.guest_client.get('')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def setUp(self) -> None:
+        self.guest_client = Client()
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.user)
 
-    def test_group_page(self):
-        response = self.guest_client.get(f'/group/{self.group.slug}/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_guest_client_status_code(self):
+        urls = ('', f'/group/{self.group.slug}/', f'/profile/{self.user}/', f'/posts/{self.post.id}/')
+        for url in urls:
+            with self.subTest():
+                response = self.guest_client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_profile_page(self):
-        response = self.guest_client.get(f'/profile/{self.user.username}/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_authorized_client_status_code(self):
+        urls = (f'/posts/{self.post.id}/edit/', '/create/')
+        for url in urls:
+            with self.subTest():
+                response = self.authorized_client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_posts_id_page(self):
-        response = self.guest_client.get(f'/posts/{self.post.id}/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_posts_edit_page(self):
-        response = self.authorized_client.get(f'/posts/{self.post.id}/edit/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_posts_create_page(self):
-        response = self.authorized_client.get('/create/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_unexisting_page(self):
-        response = self.guest_client.get('/unexisting_page/')
+    def test_unknown_url_status_code(self):
+        response = self.authorized_client.get('/unexisting_page/')
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_template(self):
