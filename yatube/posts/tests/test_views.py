@@ -48,10 +48,16 @@ class PostsVIEWTests(TestCase):
                 response = self.authorized_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
+    def check_first_page_context(self, first_object: Post):
+        self.assertEqual(first_object.text, self.post.text)
+        self.assertEqual(first_object.author, self.post.author)
+        self.assertEqual(first_object.group, self.post.group)
+
     def test_index_context(self):
         response = self.authorized_client.get(reverse('posts:index'))
         self.assertIn('title', response.context)
         self.assertIn('page_obj', response.context)
+        self.check_first_page_context(response.context['page_obj'][0])
 
     def test_group_posts_context(self):
         response = self.authorized_client.get(
@@ -60,6 +66,7 @@ class PostsVIEWTests(TestCase):
         self.assertIn('group', response.context)
         self.assertIn('page_obj', response.context)
         self.assertEqual(response.context['group'], self.group)
+        self.check_first_page_context(response.context['page_obj'][0])
 
     def test_profile_context(self):
         response = self.authorized_client.get(
@@ -68,19 +75,7 @@ class PostsVIEWTests(TestCase):
         self.assertIn('author', response.context)
         self.assertIn('page_obj', response.context)
         self.assertEqual(response.context['author'], self.user)
-
-    def test_posts_context(self):
-        pages = (
-            reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
-            reverse('posts:profile', kwargs={'username': self.user})
-        )
-        for page in pages:
-            response = self.authorized_client.get(page)
-            first_object = response.context['page_obj'][0]
-            self.assertEqual(first_object.text, self.post.text)
-            self.assertEqual(first_object.author, self.post.author)
-            self.assertEqual(first_object.group, self.post.group)
+        self.check_first_page_context(response.context['page_obj'][0])
 
     def test_post_detail_context(self):
         response = self.authorized_client.get(
@@ -130,14 +125,14 @@ class PostsPAGINATORTests(TestCase):
                 author=cls.user,
                 group=cls.group,
             )
+        cls.pages = (
+            reverse('posts:index'),
+            reverse('posts:group_list', kwargs={'slug': cls.group.slug}),
+            reverse('posts:profile', kwargs={'username': cls.user})
+        )
 
     def setUp(self):
         self.guest_client = Client()
-        self.pages = (
-            reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
-            reverse('posts:profile', kwargs={'username': self.user})
-        )
 
     def test_get_first_page_objects(self):
         for page in self.pages:
